@@ -1,4 +1,4 @@
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Iterable, Tuple
 from dataclasses import dataclass
 
 
@@ -40,24 +40,27 @@ class ContinuousParameterDescription:
 
 class ParametersDescription:
     def __init__(self) -> None:
-        self.parameters = {}
+        self._parameters = {}
 
     def add_discrete(self, name: str, values: List[Any]) -> 'ParametersDescription':
-        self.parameters[name] = DiscreteParameterDescription(values)
+        self._parameters[name] = DiscreteParameterDescription(values)
         return self
 
     def add_continuous(self, name: str, min_v: float, max_v: float) -> 'ParametersDescription':
-        self.parameters[name] = ContinuousParameterDescription(min_v, max_v)
+        self._parameters[name] = ContinuousParameterDescription(min_v, max_v)
         return self
 
     def decode_parameters(self, normalized_parameters: Dict[str, int | float]) -> Dict[str, Any]:
         decoded: Dict[str, Any] = {}
         for p_name, p_value in normalized_parameters.items():
-            assert p_name in self.parameters, f"Parameter with name {p_name} not found in description"
-            param_desc = self.parameters[p_name]
+            assert p_name in self._parameters, f"Parameter with name {p_name} not found in description"
+            param_desc = self._parameters[p_name]
             if isinstance(param_desc, ContinuousParameterDescription):
                 decoded[p_name] = param_desc.scale(p_value)
             elif isinstance(param_desc, DiscreteParameterDescription):
                 assert isinstance(p_value, int), "Discrete parameter must be encoded as integer index"
                 decoded[p_name] = param_desc.decode(p_value)
         return decoded
+
+    def items(self) -> Iterable[Tuple[str, DiscreteParameterDescription | ContinuousParameterDescription]]:
+        return self._parameters.items()
