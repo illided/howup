@@ -1,4 +1,5 @@
 from ..lib.description import ParametersDescription
+from .utils import compare_floats
 
 
 def test_empty():
@@ -12,10 +13,6 @@ def test_multple_discrete():
         .add_discrete("p2", [4.0, 5.0, 6.0]) \
         .add_discrete("p3", ["hello", "world"])
     assert desc.decode_parameters({"p1": 0, "p2": 1, "p3": 1}) == {"p1": 1, "p2": 5.0, "p3": "world"}
-
-
-def compare_floats(f1: float, f2: float, e: float = 0.0001):
-    return abs(f1 - f2) < e
 
 
 def test_multiple_continuous():
