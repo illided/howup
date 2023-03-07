@@ -31,7 +31,7 @@ def test_one_discrete_parameter():
     assert len(policy.discrete) == 1
 
     p1_v = policy.discrete["p1"]
-    assert list(p1_v.shape) == 3
+    assert list(p1_v.shape) == [3]
     assert sums_to_one(p1_v)
 
 
@@ -51,7 +51,7 @@ def test_multiple_discrete():
     assert len(policy.std) == 0
 
     for _, v in policy.discrete.items():
-        assert list(v.shape) == 3
+        assert list(v.shape) == [3]
         assert sums_to_one(v)
 
 
