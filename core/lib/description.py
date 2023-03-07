@@ -38,6 +38,12 @@ class ContinuousParameterDescription:
         return (self.max_v - self.min_v) * i + self.min_v
 
 
+@dataclass
+class NormalizedParameters:
+    discrete: Dict[str, int]
+    continuous: Dict[str, float]
+
+
 class ParametersDescription:
     def __init__(self) -> None:
         self._parameters = {}
@@ -50,16 +56,21 @@ class ParametersDescription:
         self._parameters[name] = ContinuousParameterDescription(min_v, max_v)
         return self
 
-    def decode_parameters(self, normalized_parameters: Dict[str, int | float]) -> Dict[str, Any]:
+    def decode_parameters(self, normalized_parameters: NormalizedParameters) -> Dict[str, Any]:
         decoded: Dict[str, Any] = {}
-        for p_name, p_value in normalized_parameters.items():
-            assert p_name in self._parameters, f"Parameter with name {p_name} not found in description"
-            param_desc = self._parameters[p_name]
-            if isinstance(param_desc, ContinuousParameterDescription):
-                decoded[p_name] = param_desc.scale(p_value)
-            elif isinstance(param_desc, DiscreteParameterDescription):
-                assert isinstance(p_value, int), "Discrete parameter must be encoded as integer index"
-                decoded[p_name] = param_desc.decode(p_value)
+        for p_name, p_value in normalized_parameters.discrete.items():
+            assert p_name in self._parameters, f"Couldn't find discrete parameter with name {p_name}"
+            p_decoder = self._parameters[p_name]
+            assert isinstance(p_decoder, DiscreteParameterDescription), \
+                f"Parameter {p_name} was declared as discrete but passed as continuous"
+            decoded[p_name] = self._parameters[p_name].decode(p_value)
+
+        for p_name, p_value in normalized_parameters.continuous.items():
+            assert p_name in self._parameters, f"Couldn't find continuous parameter with name {p_name}"
+            p_decoder = self._parameters[p_name]
+            assert isinstance(p_decoder, ContinuousParameterDescription), \
+                f"Parameter {p_name} was declared as continuous but passed as discrete"
+            decoded[p_name] = self._parameters[p_name].scale(p_value)
         return decoded
 
     def items(self) -> Iterable[Tuple[str, DiscreteParameterDescription | ContinuousParameterDescription]]:
