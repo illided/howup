@@ -1,11 +1,17 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from ...description import ParametersDescription, DiscreteParameterDescription, ContinuousParameterDescription
-from typing import Dict, Tuple
+from typing import Dict
+from dataclasses import dataclass
 
 
-Policy = Tuple[Dict[str, Tensor], Dict[str, Tuple[Tensor, Tensor]]]
+@dataclass
+class Policy:
+    discrete: Dict[str, Tensor]
+    mean: Dict[str, Tensor]
+    std: Dict[str, Tensor]
 
 
 class REINFORCEModel(nn.Module):
@@ -34,14 +40,19 @@ class REINFORCEModel(nn.Module):
         for p_name, p_layer in self.discrete_layers.items():
             discrete_policy[p_name] = F.softmax(p_layer(x), dim=-1)
 
-        continuous_policy = {}
+        continuous_mean_policy = {}
+        continuous_std_policy = {}
         for p_name in self.continuous_layers_means.keys():
             mean_layer = self.continuous_layers_means[p_name]
             std_layer = self.continuous_layers_std[p_name]
 
-            mean_policy = F.sigmoid(mean_layer(x))
+            mean_policy = torch.sigmoid(mean_layer(x))
             std_policy = F.softplus(std_layer(x))
 
-            continuous_policy[p_name] = (mean_policy, std_policy)
+            continuous_mean_policy[p_name] = mean_policy
+            continuous_std_policy[p_name] = std_policy
 
-        return discrete_policy, continuous_policy
+        return Policy(discrete_policy, continuous_mean_policy, continuous_std_policy)
+
+    def __call__(self, x: Tensor) -> Policy:
+        return super().__call__(x)
