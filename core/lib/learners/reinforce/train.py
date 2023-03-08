@@ -16,7 +16,8 @@ def sample_from_policy(policy: Policy) -> NormalizedParameters:
     for p_name, p_vector in policy.discrete.items():
         discrete_params[p_name] = torch.distributions.Categorical(probs=p_vector).sample().item()
     continuous_params = {}
-    for (p_name, p_mean), p_std in zip(policy.mean.items(), policy.std.values()):
+    for p_name, p_mean in policy.mean.items():
+        p_std = policy.std[p_name]
         continuous_params[p_name] = torch.distributions.Normal(p_mean, p_std).sample().clip(0, 1).item()
     return NormalizedParameters(discrete_params, continuous_params)
 
@@ -46,7 +47,8 @@ def train_reinforce(model: REINFORCEModel,
                     batch_size: int = 32,
                     save_model_every_n_steps: int = 10,
                     checkpoint_path: Optional[str] = None,
-                    entropy_beta: float = 0.05):
+                    discrete_entropy_beta: float = 0.05,
+                    continuous_entropy_beta: float = 0.05):
     optimizer = Adam(params=model.parameters())
     optimizer.zero_grad()
 
@@ -57,26 +59,27 @@ def train_reinforce(model: REINFORCEModel,
     loss_sum = torch.Tensor([0])
     for episode in trange(epochs):
         # Slowly decreasing entropy multiplier
-        entropy_mult = ((epochs - episode) / epochs) * entropy_beta
+        entropy_mult = ((epochs - episode) / epochs)
 
         # Forward pass
         env.reset()
         state = env.current_state()
-        policy = model(torch.from_numpy(state))
+        policy = model(torch.from_numpy(state).float())
         action = sample_from_policy(policy)
         parameters = env.parameters_description.decode_parameters(action)
-        reward = env.try_parameters(parameters)
+        reward = env.score(parameters)
 
         # Calculating loss
         loss = torch.Tensor([0]).float()
         for name, sub_action in policy.discrete.items():
             loss += - discrete_logprob(sub_action, action.discrete[name]) * reward
-            loss += entropy_mult * discrete_entropy(sub_action)
+            loss += - entropy_mult * discrete_entropy_beta * discrete_entropy(sub_action)
         for name, mu_v in policy.mean.items():
             std_v = policy.std[name]
             var_v = std_v ** 2
+            var_v = var_v.clamp(min=1e-3)
             loss += - normal_logprob(mu_v, var_v, torch.Tensor([action.continuous[name]])) * reward
-            loss += entropy_mult * normal_entropy(var_v)
+            loss += - entropy_mult * continuous_entropy_beta * normal_entropy(var_v)
         loss_sum += loss
 
         # Backward pass

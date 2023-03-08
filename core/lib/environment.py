@@ -1,17 +1,20 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 from .description import ParametersDescription
-from numpy import ndarray
+import numpy as np
 
 
 class Environment(ABC):
+    def __init__(self) -> None:
+        self.reset()
+
     @property
     @abstractmethod
     def parameters_description(self) -> ParametersDescription:
         ...
 
     @abstractmethod
-    def try_parameters(self, parameters: Dict[str, Any]) -> float:
+    def score(self, parameters: Dict[str, Any]) -> float:
         ...
 
     @abstractmethod
@@ -19,5 +22,5 @@ class Environment(ABC):
         ...
 
     @abstractmethod
-    def current_state(self) -> ndarray:
+    def current_state(self) -> np.ndarray:
         ...
